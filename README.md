@@ -1,13 +1,43 @@
 # Austin Trails - Strava Elevation Query
 
-A Python tool to discover high-elevation trails, segments, and routes in the Austin area using the Strava API.
+A Python tool to discover high-elevation trails, segments, and routes in the Austin area using the Strava API. Includes both a **web interface** and command-line tools.
+
+## 🌟 Two Ways to Use
+
+### 1. Web App (Recommended) 🚀
+
+Interactive web interface with real-time filtering and beautiful UI.
+
+```bash
+python app.py
+# Open http://localhost:5000 in your browser
+```
+
+**Features:**
+- Interactive filters for elevation, distance, and proximity to Cedar Park
+- Sort by elevation gain, intensity, grade, or distance from home
+- Click segments to view on Strava
+- Responsive design for desktop and mobile
+- Real-time filtering (no page reloads)
+
+👉 **See [WEB_APP_GUIDE.md](WEB_APP_GUIDE.md) for detailed instructions**
+
+### 2. Command Line Tool
+
+Query segments from the terminal and export to CSV/JSON.
+
+```bash
+python -m src.elevation_query --min-elevation 100 --max-distance 5
+```
 
 ## Features
 
+- **Web Interface**: Beautiful, interactive segment browser with filters
 - Query Strava segments and routes based on location coordinates
-- Filter by elevation gain and distance
+- Filter by elevation gain, distance, and proximity to Cedar Park
 - Find challenging climbs that aren't too long
 - Export results to JSON and CSV formats
+- Distance calculations from your home location
 
 ## Prerequisites
 
@@ -73,16 +103,25 @@ Results are saved to the `data/` directory:
 
 ```
 austin_trails/
+├── app.py                 # Web application (Flask)
+├── templates/
+│   └── index.html        # Web UI
+├── static/
+│   ├── style.css         # Styling
+│   └── app.js            # Frontend JavaScript
 ├── src/
 │   ├── __init__.py
-│   ├── strava_client.py    # Strava API integration
-│   ├── elevation_query.py  # Main query script
-│   └── utils.py            # Helper functions
-├── data/                   # Output directory
-├── .env.example           # Environment template
-├── .gitignore
+│   ├── strava_client.py  # Strava API integration
+│   ├── elevation_query.py # Command-line query tool
+│   └── utils.py          # Helper functions
+├── data/                 # Output directory
+├── config.py             # Configuration
+├── .env.example         # Environment template
 ├── requirements.txt
-└── README.md
+├── README.md
+├── WEB_APP_GUIDE.md     # Web app documentation
+├── SETUP_CHECKLIST.md   # Setup instructions
+└── QUICKSTART.md        # Quick start guide
 ```
 
 ## API Rate Limits
