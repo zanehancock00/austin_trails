@@ -129,7 +129,8 @@ class StravaClient:
         activity_type: str = "riding"
     ) -> List[Dict]:
         """
-        Search for segments within geographic bounds
+        Search for segments within geographic bounds using multiple overlapping queries
+        to get more than the API's 10 segment limit per query
 
         Args:
             sw_lat: Southwest latitude
@@ -142,21 +143,53 @@ class StravaClient:
             List of segments
         """
         try:
-            time.sleep(config.RATE_LIMIT_DELAY)
+            all_segments = []
+            seen_ids = set()
 
-            # Using the segment explore endpoint with bounds
-            url = f"{self.base_url}/segments/explore"
-            params = {
-                'bounds': f"{sw_lat},{sw_lon},{ne_lat},{ne_lon}",
-                'activity_type': activity_type
-            }
-            headers = {'Authorization': f'Bearer {self.access_token}'}
+            # Strava's explore endpoint only returns ~10 segments per query
+            # So we'll divide the area into a grid and query each cell
+            # Using 8x8 grid (64 queries) for better coverage
+            grid_size = 8  # 8x8 grid = 64 queries
+            lat_step = (ne_lat - sw_lat) / grid_size
+            lon_step = (ne_lon - sw_lon) / grid_size
 
-            response = requests.get(url, params=params, headers=headers)
-            response.raise_for_status()
+            print(f"Searching {grid_size}x{grid_size} grid for more segments...")
 
-            data = response.json()
-            return data.get('segments', [])
+            for i in range(grid_size):
+                for j in range(grid_size):
+                    cell_sw_lat = sw_lat + (i * lat_step)
+                    cell_sw_lon = sw_lon + (j * lon_step)
+                    cell_ne_lat = sw_lat + ((i + 1) * lat_step)
+                    cell_ne_lon = sw_lon + ((j + 1) * lon_step)
+
+                    time.sleep(config.RATE_LIMIT_DELAY)
+
+                    url = f"{self.base_url}/segments/explore"
+                    params = {
+                        'bounds': f"{cell_sw_lat},{cell_sw_lon},{cell_ne_lat},{cell_ne_lon}",
+                        'activity_type': activity_type
+                    }
+                    headers = {'Authorization': f'Bearer {self.access_token}'}
+
+                    try:
+                        response = requests.get(url, params=params, headers=headers)
+                        response.raise_for_status()
+                        data = response.json()
+                        segments = data.get('segments', [])
+
+                        # Deduplicate based on segment ID
+                        for seg in segments:
+                            if seg['id'] not in seen_ids:
+                                seen_ids.add(seg['id'])
+                                all_segments.append(seg)
+
+                        print(f"  Grid cell ({i},{j}): {len(segments)} segments (total unique: {len(all_segments)})")
+
+                    except Exception as e:
+                        print(f"  Error in grid cell ({i},{j}): {e}")
+                        continue
+
+            return all_segments
 
         except Exception as e:
             print(f"Error searching segments: {e}")
