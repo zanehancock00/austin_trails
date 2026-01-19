@@ -224,19 +224,31 @@ async function selectRoute(route) {
         const response = await fetch(`/api/segment/${route.id}/streams`);
         const data = await response.json();
 
-        if (data.error && !data.distance_miles) {
+        console.log('Segment stream data:', data); // Debug logging
+
+        // Check for errors first
+        if (data.error) {
             chartPlaceholder.textContent = data.error || 'Unable to load elevation profile';
+            // Still show stats if available
+            if (data.total_elevation_gain_feet) {
+                updateSegmentStats(data);
+                segmentStats.style.display = 'grid';
+                chartPlaceholder.style.display = 'flex';
+                chartCanvas.style.display = 'none';
+            }
             return;
         }
 
         // Check if we have stream data
-        if (!data.distance_miles || data.distance_miles.length === 0) {
+        if (!data.distance_miles || !Array.isArray(data.distance_miles) || data.distance_miles.length === 0) {
             chartPlaceholder.textContent = data.message || 'Elevation profile data not available for this segment';
             // Still show the stats if available
             if (data.total_elevation_gain_feet) {
                 updateSegmentStats(data);
                 segmentStats.style.display = 'grid';
             }
+            chartPlaceholder.style.display = 'flex';
+            chartCanvas.style.display = 'none';
             return;
         }
 
@@ -252,7 +264,10 @@ async function selectRoute(route) {
         createElevationChart(data);
 
     } catch (err) {
+        console.error('Error loading elevation profile:', err);
         chartPlaceholder.textContent = `Error loading profile: ${err.message}`;
+        chartPlaceholder.style.display = 'flex';
+        chartCanvas.style.display = 'none';
     }
 }
 
@@ -270,17 +285,41 @@ function updateSegmentStats(data) {
 
 // Create the elevation profile chart
 function createElevationChart(data) {
-    const ctx = document.getElementById('elevationChart').getContext('2d');
+    try {
+        const canvas = document.getElementById('elevationChart');
+        if (!canvas) {
+            console.error('Canvas element not found');
+            return;
+        }
 
-    // Destroy existing chart if any
-    if (elevationChart) {
-        elevationChart.destroy();
-    }
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            console.error('Could not get canvas context');
+            return;
+        }
 
-    // Prepare data for chart
-    const labels = data.distance_miles.map(d => d.toFixed(2));
-    const elevationData = data.altitude_feet;
-    const gradeData = data.grades;
+        // Verify Chart.js is loaded
+        if (typeof Chart === 'undefined') {
+            console.error('Chart.js is not loaded');
+            throw new Error('Chart.js library not loaded');
+        }
+
+        // Destroy existing chart if any
+        if (elevationChart) {
+            elevationChart.destroy();
+            elevationChart = null;
+        }
+
+        // Validate data
+        if (!data.distance_miles || !data.altitude_feet || !data.grades) {
+            console.error('Invalid chart data:', data);
+            throw new Error('Missing required chart data');
+        }
+
+        // Prepare data for chart
+        const labels = data.distance_miles.map(d => d.toFixed(2));
+        const elevationData = data.altitude_feet;
+        const gradeData = data.grades;
 
     // Create gradient for elevation line based on grade
     const gradientColors = data.grades.map(g => {
@@ -379,10 +418,25 @@ function createElevationChart(data) {
         }
     });
 
-    // Add steep section annotations
-    if (data.steep_sections && data.steep_sections.length > 0) {
-        // Could add annotation plugin here for vertical lines at steep sections
-        console.log(`Found ${data.steep_sections.length} steep sections (>8% grade)`);
+        // Add steep section annotations
+        if (data.steep_sections && data.steep_sections.length > 0) {
+            // Could add annotation plugin here for vertical lines at steep sections
+            console.log(`Found ${data.steep_sections.length} steep sections (>8% grade)`);
+        }
+
+        console.log('Elevation chart created successfully');
+
+    } catch (err) {
+        console.error('Error creating elevation chart:', err);
+        // Show error to user
+        const chartPlaceholder = document.getElementById('chartPlaceholder');
+        const chartCanvas = document.getElementById('elevationChart');
+        if (chartPlaceholder && chartCanvas) {
+            chartPlaceholder.textContent = `Unable to display chart: ${err.message}`;
+            chartPlaceholder.style.display = 'flex';
+            chartCanvas.style.display = 'none';
+        }
+        throw err;
     }
 }
 

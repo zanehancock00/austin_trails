@@ -3,3 +3,4 @@ python-dotenv>=1.0.0
 pandas>=2.0.0
 stravalib>=1.6.0
 flask>=3.0.0
+gunicorn>=21.0.0
