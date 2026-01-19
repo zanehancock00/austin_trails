@@ -7,25 +7,99 @@ from stravalib.client import Client
 import config
 
 
+# Global token storage (persists across requests within the same process)
+_token_cache = {
+    'access_token': None,
+    'refresh_token': None,
+    'expires_at': 0
+}
+
+
 class StravaClient:
     """Client for interacting with Strava API"""
 
     def __init__(self, access_token: Optional[str] = None):
         """
-        Initialize Strava client
+        Initialize Strava client with automatic token refresh
 
         Args:
             access_token: Strava API access token. If not provided, uses config.
         """
-        self.access_token = access_token or config.STRAVA_ACCESS_TOKEN
+        global _token_cache
+
+        # Initialize from cache or config
+        if _token_cache['access_token'] and _token_cache['expires_at'] > time.time():
+            self.access_token = _token_cache['access_token']
+            self.refresh_token = _token_cache['refresh_token']
+            self.expires_at = _token_cache['expires_at']
+        else:
+            self.access_token = access_token or config.STRAVA_ACCESS_TOKEN
+            self.refresh_token = config.STRAVA_REFRESH_TOKEN
+            self.expires_at = 0  # Assume expired, will refresh on first use
+
         if not self.access_token:
             raise ValueError(
                 "Strava access token not provided. "
                 "Set STRAVA_ACCESS_TOKEN in .env file or pass to constructor."
             )
 
+        # Ensure token is valid before proceeding
+        self._ensure_valid_token()
+
         self.client = Client(access_token=self.access_token)
         self.base_url = "https://www.strava.com/api/v3"
+
+    def _ensure_valid_token(self):
+        """Check if token is expired and refresh if needed"""
+        # Add 60 second buffer to avoid edge cases
+        if self.expires_at > 0 and time.time() < (self.expires_at - 60):
+            return  # Token still valid
+
+        # Try to refresh the token
+        if self.refresh_token and config.STRAVA_CLIENT_ID and config.STRAVA_CLIENT_SECRET:
+            self._refresh_access_token()
+
+    def _refresh_access_token(self):
+        """Refresh the access token using the refresh token"""
+        global _token_cache
+
+        print("Refreshing Strava access token...")
+
+        try:
+            response = requests.post(
+                'https://www.strava.com/oauth/token',
+                data={
+                    'client_id': config.STRAVA_CLIENT_ID,
+                    'client_secret': config.STRAVA_CLIENT_SECRET,
+                    'grant_type': 'refresh_token',
+                    'refresh_token': self.refresh_token
+                }
+            )
+            response.raise_for_status()
+            token_data = response.json()
+
+            # Update instance variables
+            self.access_token = token_data['access_token']
+            self.refresh_token = token_data['refresh_token']
+            self.expires_at = token_data['expires_at']
+
+            # Update global cache
+            _token_cache['access_token'] = self.access_token
+            _token_cache['refresh_token'] = self.refresh_token
+            _token_cache['expires_at'] = self.expires_at
+
+            # Update the stravalib client if it exists
+            if hasattr(self, 'client'):
+                self.client = Client(access_token=self.access_token)
+
+            print(f"Token refreshed successfully. Expires at: {time.ctime(self.expires_at)}")
+
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to refresh token: {e}")
+            raise ValueError(
+                f"Failed to refresh Strava access token: {e}. "
+                "Check your STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, and STRAVA_REFRESH_TOKEN."
+            )
 
     def explore_segments(
         self,
@@ -48,6 +122,7 @@ class StravaClient:
         Returns:
             List of segment dictionaries
         """
+        self._ensure_valid_token()
         try:
             # Use stravalib's segment explore endpoint
             segments = self.client.explore_segments(
@@ -89,6 +164,7 @@ class StravaClient:
         Returns:
             Dictionary with segment details
         """
+        self._ensure_valid_token()
         try:
             time.sleep(config.RATE_LIMIT_DELAY)
             segment = self.client.get_segment(segment_id)
@@ -142,6 +218,7 @@ class StravaClient:
         Returns:
             List of segments
         """
+        self._ensure_valid_token()
         try:
             all_segments = []
             seen_ids = set()
@@ -205,6 +282,7 @@ class StravaClient:
         Returns:
             List of route dictionaries
         """
+        self._ensure_valid_token()
         try:
             time.sleep(config.RATE_LIMIT_DELAY)
 
