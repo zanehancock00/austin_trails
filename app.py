@@ -506,12 +506,23 @@ def api_segment_details(segment_id):
 
 
 if __name__ == '__main__':
+    import os
+
     print("\n" + "="*80)
     print("Austin Trails Web App")
     print("="*80)
     print("\nStarting web server...")
-    print("Open your browser to: http://localhost:5000")
+
+    # Use PORT environment variable for production deployments (Heroku, Render, etc.)
+    port = int(os.environ.get('PORT', 5000))
+
+    # Debug mode should be off in production
+    debug = os.environ.get('FLASK_ENV') != 'production'
+
+    print(f"Server running on port {port}")
+    print(f"Debug mode: {debug}")
+    print("Open your browser to: http://localhost:5000" if port == 5000 else f"Open your browser to: http://0.0.0.0:{port}")
     print("\nPress Ctrl+C to stop the server")
     print("="*80 + "\n")
 
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=debug, host='0.0.0.0', port=port)
