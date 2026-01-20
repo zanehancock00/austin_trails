@@ -2,9 +2,18 @@
 
 import time
 import requests
+import certifi
 from typing import List, Dict, Optional
 from stravalib.client import Client
 import config
+
+
+# Create a requests session with proper SSL certificates
+def get_session():
+    """Get a requests session configured with proper SSL certificates"""
+    session = requests.Session()
+    session.verify = certifi.where()
+    return session
 
 
 # Global token storage (persists across requests within the same process)
@@ -73,7 +82,8 @@ class StravaClient:
                     'client_secret': config.STRAVA_CLIENT_SECRET,
                     'grant_type': 'refresh_token',
                     'refresh_token': self.refresh_token
-                }
+                },
+                verify=certifi.where()
             )
             response.raise_for_status()
             token_data = response.json()
@@ -225,8 +235,8 @@ class StravaClient:
 
             # Strava's explore endpoint only returns ~10 segments per query
             # So we'll divide the area into a grid and query each cell
-            # Using 8x8 grid (64 queries) for better coverage
-            grid_size = 8  # 8x8 grid = 64 queries
+            # Using 6x6 grid (36 queries) to balance coverage vs memory/time
+            grid_size = 6  # 6x6 grid = 36 queries
             lat_step = (ne_lat - sw_lat) / grid_size
             lon_step = (ne_lon - sw_lon) / grid_size
 
@@ -249,7 +259,7 @@ class StravaClient:
                     headers = {'Authorization': f'Bearer {self.access_token}'}
 
                     try:
-                        response = requests.get(url, params=params, headers=headers)
+                        response = requests.get(url, params=params, headers=headers, verify=certifi.where())
                         response.raise_for_status()
                         data = response.json()
                         segments = data.get('segments', [])
