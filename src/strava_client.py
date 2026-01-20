@@ -235,8 +235,8 @@ class StravaClient:
 
             # Strava's explore endpoint only returns ~10 segments per query
             # So we'll divide the area into a grid and query each cell
-            # Using 6x6 grid (36 queries) to balance coverage vs memory/time
-            grid_size = 6  # 6x6 grid = 36 queries
+            # Using 4x4 grid (16 queries) for faster loading on free tier hosting
+            grid_size = 4  # 4x4 grid = 16 queries
             lat_step = (ne_lat - sw_lat) / grid_size
             lon_step = (ne_lon - sw_lon) / grid_size
 

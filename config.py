@@ -29,5 +29,5 @@ DEFAULT_MAX_DISTANCE = float(os.getenv("DEFAULT_MAX_DISTANCE", "10"))  # km
 DEFAULT_MIN_ELEVATION = float(os.getenv("DEFAULT_MIN_ELEVATION", "50"))  # meters
 DEFAULT_SEARCH_RADIUS = float(os.getenv("DEFAULT_SEARCH_RADIUS", "10"))  # km
 
-# API Rate limiting
-RATE_LIMIT_DELAY = 0.5  # seconds between requests
+# API Rate limiting (reduced for faster loading on free tier hosting)
+RATE_LIMIT_DELAY = 0.2  # seconds between requests
