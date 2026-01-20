@@ -46,10 +46,10 @@ def get_segments():
         # Initialize Strava client
         client = StravaClient()
 
-        # Search parameters (wide area around Austin)
+        # Search parameters (Greater Austin area)
         center_lat = config.DEFAULT_LAT
         center_lon = config.DEFAULT_LON
-        radius = 50  # km - very wide search radius for more results
+        radius = 30  # km - covers Cedar Park, Round Rock, Lakeway, Pflugerville
         radius_deg = radius / 111.0
 
         # Get segments
