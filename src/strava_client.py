@@ -172,7 +172,7 @@ class StravaClient:
             segment_id: Strava segment ID
 
         Returns:
-            Dictionary with segment details
+            Dictionary with segment details, or dict with 'error' key if failed
         """
         self._ensure_valid_token()
         try:
@@ -203,8 +203,23 @@ class StravaClient:
                 'star_count': segment.star_count,
             }
         except Exception as e:
-            print(f"Error getting segment {segment_id}: {e}")
-            return None
+            import traceback
+            error_msg = str(e)
+            print(f"Error getting segment {segment_id}: {error_msg}")
+            print(f"Traceback: {traceback.format_exc()}")
+
+            # Provide more specific error messages
+            if '404' in error_msg or 'not found' in error_msg.lower():
+                error_msg = 'Segment not found or no longer available'
+            elif '403' in error_msg or 'forbidden' in error_msg.lower():
+                error_msg = 'Segment is private or access is restricted'
+            elif '401' in error_msg or 'unauthorized' in error_msg.lower():
+                error_msg = 'Authentication error - please refresh your Strava token'
+            elif 'rate limit' in error_msg.lower():
+                error_msg = 'Strava API rate limit exceeded - please try again later'
+
+            # Return error info instead of None for better debugging
+            return {'error': error_msg, 'segment_id': segment_id}
 
     def search_segments_by_bounds(
         self,

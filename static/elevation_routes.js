@@ -221,10 +221,12 @@ async function selectRoute(route) {
     segmentStats.style.display = 'none';
 
     try {
+        console.log('Fetching elevation profile for segment:', route.id, 'Name:', route.name);
         const response = await fetch(`/api/segment/${route.id}/streams`);
         const data = await response.json();
 
         console.log('Segment stream data:', data); // Debug logging
+        console.log('Response status:', response.status);
 
         // Check for errors first
         if (data.error) {
