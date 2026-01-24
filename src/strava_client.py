@@ -172,39 +172,52 @@ class StravaClient:
             segment_id: Strava segment ID
 
         Returns:
-            Dictionary with segment details
+            Dictionary with segment details, or raises exception on error
         """
         self._ensure_valid_token()
-        try:
-            time.sleep(config.RATE_LIMIT_DELAY)
-            segment = self.client.get_segment(segment_id)
+        time.sleep(config.RATE_LIMIT_DELAY)
 
-            return {
-                'id': segment.id,
-                'name': segment.name,
-                'activity_type': segment.activity_type,
-                'distance': float(segment.distance),  # meters
-                'average_grade': float(segment.average_grade),  # percentage
-                'maximum_grade': float(segment.maximum_grade),  # percentage
-                'elevation_high': float(segment.elevation_high),  # meters
-                'elevation_low': float(segment.elevation_low),  # meters
-                'total_elevation_gain': float(segment.total_elevation_gain),  # meters
-                'climb_category': segment.climb_category,
-                'climb_category_desc': segment.climb_category_desc,
-                'city': segment.city,
-                'state': segment.state,
-                'country': segment.country,
-                'start_latitude': segment.start_latitude,
-                'start_longitude': segment.start_longitude,
-                'end_latitude': segment.end_latitude,
-                'end_longitude': segment.end_longitude,
-                'effort_count': segment.effort_count,
-                'athlete_count': segment.athlete_count,
-                'star_count': segment.star_count,
-            }
-        except Exception as e:
-            print(f"Error getting segment {segment_id}: {e}")
-            return None
+        # Try direct API first (more reliable than stravalib)
+        try:
+            url = f"{self.base_url}/segments/{segment_id}"
+            headers = {'Authorization': f'Bearer {self.access_token}'}
+            response = requests.get(url, headers=headers, verify=certifi.where())
+
+            if response.status_code == 200:
+                segment = response.json()
+                return {
+                    'id': segment.get('id'),
+                    'name': segment.get('name'),
+                    'activity_type': segment.get('activity_type'),
+                    'distance': float(segment.get('distance', 0)),
+                    'average_grade': float(segment.get('average_grade', 0)),
+                    'maximum_grade': float(segment.get('maximum_grade', 0)),
+                    'elevation_high': float(segment.get('elevation_high', 0)),
+                    'elevation_low': float(segment.get('elevation_low', 0)),
+                    'total_elevation_gain': float(segment.get('total_elevation_gain', 0)),
+                    'climb_category': segment.get('climb_category'),
+                    'climb_category_desc': segment.get('climb_category_desc'),
+                    'city': segment.get('city'),
+                    'state': segment.get('state'),
+                    'country': segment.get('country'),
+                    'start_latitude': segment.get('start_latitude'),
+                    'start_longitude': segment.get('start_longitude'),
+                    'end_latitude': segment.get('end_latitude'),
+                    'end_longitude': segment.get('end_longitude'),
+                    'effort_count': segment.get('effort_count'),
+                    'athlete_count': segment.get('athlete_count'),
+                    'star_count': segment.get('star_count'),
+                }
+            else:
+                error_data = response.json() if response.text else {}
+                error_msg = error_data.get('message', f'HTTP {response.status_code}')
+                print(f"Strava API error for segment {segment_id}: {error_msg}")
+                raise Exception(f"Strava API error: {error_msg}")
+
+        except requests.RequestException as e:
+            error_msg = str(e)
+            print(f"Request error getting segment {segment_id}: {error_msg}")
+            raise Exception(f"Network error fetching segment {segment_id}: {error_msg}")
 
     def search_segments_by_bounds(
         self,

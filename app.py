@@ -375,9 +375,15 @@ def api_segment_streams(segment_id):
         client = StravaClient()
 
         # Get segment details first
-        segment_details = client.get_segment_details(segment_id)
+        try:
+            segment_details = client.get_segment_details(segment_id)
+        except Exception as e:
+            error_msg = str(e)
+            print(f"Error fetching segment {segment_id}: {error_msg}")
+            return jsonify({'error': f'Unable to load segment: {error_msg}'}), 404
+
         if not segment_details:
-            return jsonify({'error': 'Segment not found'}), 404
+            return jsonify({'error': 'Segment not found - no data returned'}), 404
 
         # Try to get stream data from Strava API
         try:
@@ -481,10 +487,16 @@ def api_segment_details(segment_id):
     """Get detailed information about a specific segment"""
     try:
         client = StravaClient()
-        details = client.get_segment_details(segment_id)
+
+        try:
+            details = client.get_segment_details(segment_id)
+        except Exception as e:
+            error_msg = str(e)
+            print(f"Error fetching segment {segment_id}: {error_msg}")
+            return jsonify({'error': f'Unable to load segment: {error_msg}'}), 404
 
         if not details:
-            return jsonify({'error': 'Segment not found'}), 404
+            return jsonify({'error': 'Segment not found - no data returned'}), 404
 
         # Add imperial conversions
         details['distance_miles'] = details.get('distance', 0) * 0.000621371
